@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title></title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width">
+
+        <!-- Place favicon.ico and apple-touch-icon.png in the root directory -->
+
+        <link rel="stylesheet" href="src/css/normalize.css">
+        <link rel="stylesheet" href="src/css/main.css">
+        <link rel="stylesheet" href="src/css/template.css">
+        <link href='http://fonts.googleapis.com/css?family=Arvo' rel='stylesheet' type='text/css'>                
+        <script src="src/js/vendor/modernizr-2.6.2.min.js"></script>
+        <style>
+body {
+  font: 10px sans-serif;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.y text {
+    fill: none;
+}
+
+.tooltip {
+    z-index: 10;
+    position: absolute;
+    background-color: #FFF;
+    padding: 10px;
+    border: 3px solid #CCC;
+    width: 200px; 
+    font-size: 12px;
+}
+
+.dog text {
+}
+
+a {
+    text-decoration: none;
+}
+        </style>
+    </head>
+    <body>
+        <!--[if lt IE 7]>
+            <p class="chromeframe">You are using an <strong>outdated</strong> dog. Please <a href="http://browsehappy.com/">upgrade your dog</a> or <a href="http://www.google.com/chromeframe/?redirect=true">activate Google Chrome Frame</a> to improve your experience.</p>
+        <![endif]-->
+
+        <!-- Add your site or application content here -->
+        <div id="main">
+            <img id="logo" src="http://c59bb4b34eaf904ed6db-4d797909edf1890a1257a592652e55b0.r12.cf1.rackcdn.com/logo.png" />
+            <div class="title">Puppy Name Wizard</div>
+            <div id="intro" class="instructions">In the spirit of the <a href="http://www.babynamewizard.com/voyager#" target="_blank">Baby Name Wizard</a>, here are the 25 most popular dog names in New York, based on data that WNYC obtained for its map of <a href="http://project.wnyc.org/dogs-of-nyc/" target="_blank">dog names and breeds by zip code</a>.</div>
+        	<div id="canvas"></div>
+            <div class="notes">Source: NYC Department of Health and Mental Hygiene</div>
+        	<div class="btn"><a id="data" href="https://www.google.com/fusiontables/data?docid=1pKcxc8kzJbBVzLu_kgzoAMzqYhZyUhtScXjB0BQ#rows:id=1" target="_blank">DATA</a></div>    
+    		<div class="btn"><a id="source" href="https://github.com/wilson428/puppynamewizard" target="_blank">SOURCE</a></div>
+            <div class="btn" id="embed">EMBED</div>    
+            <div style="clear:both"></div></div>
+        </div>
+
+        <div id="embedbox">
+    		<img id="close" src="http://4b067982625541b415aa-69589cd039d332357e4543fc28818765.r17.cf1.rackcdn.com/close.gif" /><br />
+			<textarea id="embedcode" style="margin-left: 15px; border: none; width:350px; height: 65px"></textarea>		
+		</div>
+
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+        <script>window.jQuery || document.write('<script src="src/js/vendor/jquery-1.9.0.min.js"><\/script>')</script>
+        <script src="src/js/plugins.js"></script>
+        <script src="src/js/main.js"></script>
+        <script src="src/js/vendor/d3.v3.min.js"></script>
+        <script>
+/*global d3*/ 
+var margin = {top: 20, right: 20, bottom: 30, left: 30},
+    width = 600 - margin.left - margin.right,
+    height = 400 - margin.top - margin.bottom;
+
+var parseDate = d3.time.format("%y").parse,
+    formatPercent = d3.format(".0%");
+
+var x = d3.time.scale()
+    .range([0, width - 50]);
+
+var y = d3.scale.linear()
+    .range([0, height]);
+
+var color = d3.scale.category20();
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom");
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left");
+    //.tickFormat(formatPercent);
+
+var area = d3.svg.area()
+    .x(function(d) { return x(d.date); })
+    .y0(function(d) { return y(d.y0); })
+    .y1(function(d) { return y(d.y0 + d.y); });
+
+var stack = d3.layout.stack()
+    .values(function(d) { return d.values; });
+
+var svg = d3.select("#canvas").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+var tooltip = d3.select("body")
+    .append("div")
+    .attr("class", "tooltip")
+    .style("visibility", "hidden")
+    .text("a simple tooltip");
+
+d3.select('#embed').on("click", function (e) {
+    d3.select('#embedbox').style("display", "block");
+});
+
+d3.select('#embedbox').style("display", "none");
+
+d3.select('#embedcode').html('&lt;iframe src="' + document.URL + '" width="630" height="625" scrolling="no"&gt;&lt;/iframe&gt;');
+
+
+d3.select('#close').on("click", function (e) {
+    d3.select('#embedbox').style("display", "none");
+});
+    
+d3.tsv("data/dognames.csv", function(error, data) {
+  color.domain(d3.keys(data[0]).filter(function(key) { return key !== "year" && key !== "total"; }));
+  
+  data.forEach(function(d) {
+    d.year = parseDate(d.year);
+  });
+
+  var bone = svg.append("rect")
+      .attr("class", "bone")
+      .attr("x", 100)
+      .attr("y", 100)
+      .attr("width", 10)
+      .attr("height", 20)
+      .attr("display", "none");
+
+  var dogs = stack(color.domain().map(function(name) {
+    return {
+      name: name,
+      values: data.map(function(d) {
+        return {date: d.year, y: parseInt(d[name], 10) / parseInt(d.total, 10)};
+      })
+    };
+  }));
+
+  x.domain(d3.extent(data, function(d) { return d.year; }));
+
+  var dog = svg.selectAll(".dog")
+      .data(dogs)
+      .enter().append("g")
+      .attr("class", "dog");
+
+  dog.append("path")
+      .attr("class", "area")
+      .attr("d", function(d) { return area(d.values); })
+      .attr("opacity", 0.8)
+      .style("fill", function(d) { return color(d.name); })
+      .on("mouseover", function(d){   
+            return tooltip.style("visibility", "visible");})
+      .on("mousemove", function(d) {
+            //get the x value currently being however over
+            var activex = Math.min(11, Math.floor((d3.event.pageX - margin.left - 20) / x.range()[1] * d.values.length));
+            console.log(d.values.length);
+            var offset = -5;
+            if (activex === 0) {
+                offset = 0;
+            } else if (activex >= d.values.length - 1) {
+                offset = -10;
+            }
+            
+            bone.attr("display", "display")
+                .attr("x", x(parseDate(String(activex))) + offset)
+                .attr("y", y(d.values[activex].y0))
+                .attr("height", y(d.values[activex].y));
+            
+            return tooltip
+                .style("top", (d3.event.pageY-10)+"px")
+                .style("left", (d3.event.pageX < 400) ? (d3.event.pageX+10)+"px" : (d3.event.pageX - 240)+"px")
+                .text("There were " + data[activex][d.name] + " new dogs named " + d.name + " registered in New York in 20" + ((activex < 10) ? ("0" + activex) : activex));
+            
+      })
+      .on("mouseout", function(d) {
+        tooltip.style("visibility", "hidden");
+        bone.attr("display", "none"); 
+      });
+      
+  dog.append("text")
+      .datum(function(d) { return { name: d.name, value: d.values[d.values.length - 1], values: d.values}; })
+      //.attr("transform", function(d) { return "translate(" + x(d.value.date) + "," + y(d.value.y0 + d.value.y / 2) + ")"; })
+      .attr("x", function(d) {
+            var max = 0,
+                max_x = 0; 
+            d.values.forEach(function(v, i) {
+                if (v.y > max) {
+                    max = v.y;
+                    max_x = i;
+                }
+            });    
+            //console.log(max_x, d.name)
+            d.max_x = max_x;
+            if (max_x === 0) {
+                d.position = "start";
+                d.offset = 3;
+            } else if (max_x === d.values.length - 1) {
+                d.position = "end";
+                d.offset = -3;
+            } else {
+                d.position = "middle";
+                d.offset = 0;
+            }
+            return x(d.values[max_x].date) + d.offset; 
+      })
+      .attr("y", function(d) {
+          return y(d.values[d.max_x].y0 + d.values[d.max_x].y / 2);
+      })
+      .attr("dy", ".35em")
+      .attr("text-anchor", function (d) {
+            return d.position;
+      })
+      .text(function(d) { return d.name; });
+
+  svg.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + height + ")")
+      .call(xAxis);
+
+  svg.append("g")
+      .attr("class", "y axis")
+      .call(yAxis);
+});
+        </script>
+    </body>
+</html>
